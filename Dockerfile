@@ -1,4 +1,4 @@
-FROM debian:buster
+FROM debian:stable
 
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y apt-utils \
@@ -35,22 +35,26 @@ ENV ARCH=arm \
     SYSROOT=$RPXC_ROOT/sysroot
 
 WORKDIR $SYSROOT
-RUN curl -Ls https://github.com/MarcAntoineCRUE/docker-rpi-raspbian/raw/master/raspbianBuster.tar.xz \
-    | tar -xJf - \
- && curl -Ls https://github.com/resin-io-projects/armv7hf-debian-qemu/raw/master/bin/qemu-arm-static \
-    > $SYSROOT/$QEMU_PATH \
- && chmod +x $SYSROOT/$QEMU_PATH \
+RUN curl -Ls https://downloads.raspberrypi.org/raspbian_lite/root.tar.xz \
+| tar -xJf -
+ADD https://github.com/resin-io-projects/armv7hf-debian-qemu/raw/master/bin/qemu-arm-static $SYSROOT/$QEMU_PATH
+
+RUN chmod +x $SYSROOT/$QEMU_PATH \
  && mkdir -p $SYSROOT/build
- RUN chroot $SYSROOT $QEMU_PATH /bin/sh -c '\
-        echo "deb http://archive.raspbian.org/raspbian buster firmware" \
+
+RUN chroot $SYSROOT $QEMU_PATH /bin/sh -c '\
+        echo "deb http://archive.raspbian.org/raspbian stable firmware" \
             >> /etc/apt/sources.list \
         && apt-get update \
+        && sudo apt-mark hold \
+        raspberrypi-bootloader raspberrypi-kernel raspberrypi-sys-mods raspi-config \
         && DEBIAN_FRONTEND=noninteractive apt-get install -y apt-utils \
         && DEBIAN_FRONTEND=noninteractive dpkg-reconfigure apt-utils \
         && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
         && DEBIAN_FRONTEND=noninteractive apt-get install -y \
                 libc6-dev \
                 symlinks \
+                libraspberrypi-dev \
                 wget     \
         && symlinks -cors /'
 
@@ -63,3 +67,4 @@ COPY image/ /
 
 WORKDIR /build
 ENTRYPOINT [ "/rpxc/entrypoint.sh" ]
+RUN install-debian libc6-armhf-cross
